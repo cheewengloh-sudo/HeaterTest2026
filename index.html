@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>QRF 蓝牙温控面板 - TEST MODE (No File Transfer)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Segoe UI", Roboto, sans-serif;
+      background: #f5f7fa;
+      padding: 40px;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin-bottom: 30px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      padding: 30px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    button:disabled:hover {
+      background-color: #cccccc;
+    }
+
+    .data-row {
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 16px;
+    }
+
+    .label {
+      font-weight: bold;
+      flex: 0 0 180px;
+      color: #555;
+    }
+
+    .value {
+      font-family: monospace;
+      color: #2c3e50;
+    }
+
+    .input-row {
+      margin-top: 25px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .input-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 18px;
+      margin-top: 25px;
+    }
+
+    input[type="text"] {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 15px;
+      width: 140px;
+    }
+
+    #btnConnect {
+      width: 100%;
+    }
+
+    .footer {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: #aaa;
+    }
+
+    /* Test mode banner */
+    .test-mode-banner {
+      background-color: #f39c12;
+      color: white;
+      text-align: center;
+      padding: 8px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
+
+    /* File list area - DISABLED */
+    .file-list-container {
+      margin-top: 20px;
+      border-top: 1px solid #eee;
+      padding-top: 20px;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .file-list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .file-list {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px;
+      background-color: #f0f0f0;
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .file-item:last-child {
+      border-bottom: none;
+    }
+
+    .file-item input[type="checkbox"] {
+      margin-right: 10px;
+    }
+
+    .file-name {
+      flex-grow: 1;
+      font-family: monospace;
+    }
+
+    .file-size {
+      color: #777;
+      font-size: 0.9em;
+      margin-left: 10px;
+    }
+
+    .no-files {
+      color: #999;
+      font-style: italic;
+      text-align: center;
+      padding: 10px;
+    }
+
+    /* Debug info area */
+    .debug-container {
+      margin-top: 20px;
+      border-top: 1px solid #eee;
+      padding-top: 20px;
+    }
+
+    .debug-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    #debugLog {
+      height: 120px;
+      overflow-y: auto;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    .debug-entry {
+      margin-bottom: 5px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .debug-time {
+      color: #888;
+      margin-right: 8px;
+    }
+
+    /* Status indicator */
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .status-connected {
+      background-color: #2ecc71;
+    }
+
+    .status-disconnected {
+      background-color: #e74c3c;
+    }
+
+    /* Connection status */
+    .connection-status {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 8px 12px;
+      background-color: #f8f9fa;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .status-info {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      background-color: #f8f9fa;
+      border-left: 4px solid #3498db;
+    }
+    
+    .status-warning {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      background-color: #fef5e7;
+      border-left: 4px solid #f39c12;
+    }
+    
+    .progress-bar {
+      height: 6px;
+      background-color: #ecf0f1;
+      border-radius: 3px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    
+    .progress {
+      height: 100%;
+      background-color: #3498db;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    
+    .download-status {
+      font-size: 14px;
+      margin-top: 5px;
+      color: #7f8c8d;
+    }
+
+    .file-item:hover {
+      background-color: #f5f5f5;
+    }
+
+    .file-item input[type="checkbox"] {
+      transform: scale(1.2);
+      margin-right: 12px;
+    }
+
+    #btnDownloadSelected:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    #fileList {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- Test Mode Banner -->
+  <div class="test-mode-banner">
+    🔧 TEST MODE: File Transfer DISABLED - Monitoring Only 🔧
+  </div>
+
+  <div style="text-align:right; margin-bottom:10px;">
+    <select id="langSelect" onchange="switchLang(this.value)">
+      <option value="en">English</option>
+      <option value="zh">中文</option>
+    </select>
+  </div>
+
+  <h1 id="mainTitle">QRF 蓝牙温控面板 (TEST MODE)</h1>
+
+  <div class="container">
+    <div class="connection-status">
+      <span id="statusIndicator" class="status-indicator status-disconnected"></span>
+      <span id="connectionStatusText">Disconnected</span>
+    </div>
+
+    <div class="data-row">
+      <label class="label" id="labelCurrentTemp" for="currentTemp">当前温度：</label>
+      <span class="value" id="currentTemp">--</span>
+    </div>
+    <div class="data-row">
+      <label class="label" id="labelTargetTemp" for="targetTemp">目标温度：</label>
+      <span class="value" id="targetTemp">--</span>
+    </div>
+    <div class="data-row">
+      <label class="label" id="labelBatteryLevel" for="batteryLevel">电池电量：</label>
+      <span class="value" id="batteryLevel">--</span>
+    </div>
+
+    <div style="margin: 30px 0;">
+      <canvas id="tempChart" height="180"></canvas>
+    </div>
+
+    <div class="input-row">
+      <input type="text" id="tempInput" maxlength="8" placeholder="设置温度">
+      <button id="btnWriteTemp" onclick="writeTargetTemp()">写入温度</button>
+      <!-- DISABLED: CSV download button -->
+      <button id="btnDownloadCSV" onclick="askForDownload()" disabled style="background-color:#cccccc;">下载日志数据 (DISABLED)</button>
+    </div>
+     
+    <div id="fileStatus" class="status-info">
+      File system status: TEST MODE - File features disabled
+    </div>
+
+    <!-- DISABLED: Download progress area -->
+    <div id="downloadProgress" style="display: none;">
+      <div class="progress-bar">
+        <div id="progressBar" class="progress"></div>
+      </div>
+      <div id="downloadStatusText" class="download-status">Preparing download...</div>
+    </div>
+
+    <!-- DISABLED: File list area - visually disabled -->
+    <div class="file-list-container">
+      <div class="file-list-header">
+        <h3 id="fileListTitle">Available Files (DISABLED IN TEST MODE)</h3>
+        <div>
+          <button id="btnDownloadSelected" onclick="downloadSelectedFiles()" disabled>Download Selected (DISABLED)</button>
+        </div>
+      </div>
+      <div class="file-list" id="fileList">
+        <div class="no-files" id="noFilesMessage">File features disabled for testing</div>
+      </div>
+    </div>
+
+    <div class="debug-container">
+      <div class="debug-header">
+        <h3 id="debugTitle">Debug Information</h3>
+        <button id="btnClearDebug" onclick="clearDebugLog()" style="font-size: 14px;">Clear Log</button>
+      </div>
+      <div id="debugLog"></div>
+    </div>
+
+    <div class="input-actions">
+      <div style="margin-top: 20px; text-align: center;">
+        <button id="btnConnect" onclick="connectBluetooth()">Connect Bluetooth</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer" id="footerText">
+    QRF 控制系统 © 2025 - TEST MODE (No File Transfer)
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <script>
+    const LANGS = {
+      zh: {
+        title: "蓝牙温控面板 (测试模式)",
+        currentTemp: "当前温度：",
+        targetTemp: "目标温度：",
+        batteryLevel: "电池电量：",
+        setTemp: "设置温度",
+        writeTemp: "设置温度",
+        connect: "连接蓝牙设备",
+        footer: "QRF 控制系统 © 2025 - 测试模式",
+        alert: "请输入合法的温度（0.0 ~ 99.9°C）",
+        notConnected: "尚未连接蓝牙或未发现写特性",
+        downloadLog: "下载日志数据 (已禁用)",
+        availableFiles: "可用文件 (测试模式已禁用)",
+        noFiles: "文件功能已禁用",
+        selectAll: "全选",
+        downloadSelected: "下载选中文件 (已禁用)",
+        refreshList: "刷新文件列表",
+        connected: "已连接",
+        disconnected: "未连接",
+        fileStatusWaiting: "测试模式: 文件功能已禁用",
+        fileStatusRequesting: "测试模式: 文件功能已禁用",
+        fileStatusReceived: "测试模式: 文件功能已禁用",
+        fileStatusError: "测试模式: 文件功能已禁用",
+        debugTitle: "调试信息",
+        clearLog: "清空日志"
+      },
+      en: {
+        title: "Bluetooth Thermostat Panel (TEST MODE)",
+        currentTemp: "Current Temperature:",
+        targetTemp: "Target Temperature:",
+        batteryLevel: "Battery Level:",
+        setTemp: "Set Temperature",
+        writeTemp: "Set Temperature",
+        connect: "Connect Bluetooth",
+        footer: "QRF Control System © 2025 - TEST MODE",
+        alert: "Please enter a valid temperature (0.0 ~ 99.9°C)",
+        notConnected: "Not connected or characteristic not found",
+        downloadLog: "Download Logged Data (DISABLED)",
+        availableFiles: "Available Files (DISABLED IN TEST MODE)",
+        noFiles: "File features disabled for testing",
+        selectAll: "Select All",
+        downloadSelected: "Download Selected (DISABLED)",
+        refreshList: "Refresh List",
+        connected: "Connected",
+        disconnected: "Disconnected",
+        fileStatusWaiting: "TEST MODE: File features disabled",
+        fileStatusRequesting: "TEST MODE: File features disabled",
+        fileStatusReceived: "TEST MODE: File features disabled",
+        fileStatusError: "TEST MODE: File features disabled",
+        debugTitle: "Debug Information",
+        clearLog: "Clear Log"
+      }
+    };
+    let currentLang = 'en';
+
+    function switchLang(lang) {
+      currentLang = lang;
+      document.title = LANGS[lang].title;
+      document.getElementById('mainTitle').textContent = LANGS[lang].title;
+      document.getElementById('labelCurrentTemp').textContent = LANGS[lang].currentTemp;
+      document.getElementById('labelTargetTemp').textContent = LANGS[lang].targetTemp;
+      document.getElementById('labelBatteryLevel').textContent = LANGS[lang].batteryLevel;
+      document.getElementById('tempInput').placeholder = LANGS[lang].setTemp;
+      document.getElementById('btnWriteTemp').textContent = LANGS[lang].writeTemp;
+      document.getElementById('btnConnect').textContent = LANGS[lang].connect;
+      document.getElementById('footerText').textContent = LANGS[lang].footer;
+      document.getElementById('btnDownloadCSV').textContent = LANGS[lang].downloadLog;
+      document.getElementById('fileListTitle').textContent = LANGS[lang].availableFiles;
+      document.getElementById('noFilesMessage').textContent = LANGS[lang].noFiles;
+      document.getElementById('btnSelectAll').textContent = LANGS[lang].selectAll;
+      document.getElementById('btnDownloadSelected').textContent = LANGS[lang].downloadSelected;
+      document.getElementById('connectionStatusText').textContent = isConnected ? LANGS[lang].connected : LANGS[lang].disconnected;
+      document.getElementById('langSelect').value = lang; 
+      document.getElementById('debugTitle').textContent = LANGS[lang].debugTitle;
+      document.getElementById('btnClearDebug').textContent = LANGS[lang].clearLog;
+      
+      const fileStatus = document.getElementById('fileStatus');
+      if (fileStatus) {
+        fileStatus.textContent = LANGS[lang].fileStatusWaiting;
+        fileStatus.className = 'status-info';
+      }
+    }
+
+    const serviceUUID = 'abcd0000-0000-1000-8000-00805f9b0131';
+    const writeUUID = 'abcd0001-0000-1000-8000-00805f9b0131';
+    
+    // DISABLED: Remove file-related characteristics from notifyUUIDs
+    const notifyUUIDs = [
+      'abcd0002-0000-1000-8000-00805f9b0131',
+      'abcd0004-0000-1000-8000-00805f9b0131',
+      'abcd2a19-0000-1000-8000-00805f9b0131'
+      // 'abcd1001-0000-1000-8000-00805f9b0131',  // DISABLED: File transfer characteristic
+      // 'abcd1002-0000-1000-8000-00805f9b0131'   // DISABLED: File list characteristic
+    ];
+
+    const notifyDisplayMap = {
+      'abcd0002-0000-1000-8000-00805f9b0131': 'currentTemp',
+      'abcd0004-0000-1000-8000-00805f9b0131': 'targetTemp',
+      'abcd2a19-0000-1000-8000-00805f9b0131': 'batteryLevel'
+    };
+
+    let writeCharacteristic = null;
+    let isConnected = false;
+
+    function addDebugLog(message) {
+      const debugLog = document.getElementById('debugLog');
+      const now = new Date();
+      const timeString = now.toTimeString().split(' ')[0];
+      const logEntry = document.createElement('div');
+      logEntry.className = 'debug-entry';
+      logEntry.innerHTML = `<span class="debug-time">[${timeString}]</span> ${message}`;
+      debugLog.appendChild(logEntry);
+      debugLog.scrollTop = debugLog.scrollHeight;
+    }
+
+    function clearDebugLog() {
+      document.getElementById('debugLog').innerHTML = '';
+    }
+
+    function updateConnectionStatus(connected) {
+      isConnected = connected;
+      const indicator = document.getElementById('statusIndicator');
+      const statusText = document.getElementById('connectionStatusText');
+      
+      if (connected) {
+        indicator.className = 'status-indicator status-connected';
+        statusText.textContent = LANGS[currentLang].connected;
+        addDebugLog(`[CONNECTION] ✅ Connected successfully! (TEST MODE - No file transfer)`);
+      } else {
+        indicator.className = 'status-indicator status-disconnected';
+        statusText.textContent = LANGS[currentLang].disconnected;
+        addDebugLog(`[CONNECTION] ❌ Disconnected`);
+      }
+    }
+
+    function parseFixedPointTemp(value) {
+      const raw = value.getUint8(0) | (value.getUint8(1) << 8);
+      return raw * 0.1;
+    }
+
+    async function connectBluetooth() {
+      try {
+        addDebugLog('TEST MODE: Requesting Bluetooth device...');
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: [serviceUUID]
+        });
+
+        addDebugLog(`Found device: ${device.name}`);
+        addDebugLog('Connecting to GATT server...');
+
+        const server = await device.gatt.connect();
+        addDebugLog('GATT server connected');
+        
+        const service = await server.getPrimaryService(serviceUUID);
+        addDebugLog('Primary service found');
+        
+        const characteristics = await service.getCharacteristics();
+        addDebugLog(`Found ${characteristics.length} characteristics`);
+
+        for (const char of characteristics) {
+          const uuid = char.uuid;
+          addDebugLog(`Characteristic: ${uuid}`);
+
+          if (uuid === writeUUID) {
+            writeCharacteristic = char;
+            addDebugLog('✅ Found write characteristic');
+            continue;
+          }
+
+          if (notifyUUIDs.includes(uuid)) {
+            addDebugLog(`Enabling notifications: ${uuid}`);
+            await char.startNotifications();
+            char.addEventListener('characteristicvaluechanged', (event) => {
+              const value = event.target.value;
+              const uuid = event.target.uuid;
+              const spanId = notifyDisplayMap[uuid];
+              let parsed = '';
+
+              switch (uuid) {
+                case 'abcd0002-0000-1000-8000-00805f9b0131':
+                  const tempVal = parseFixedPointTemp(value);
+                  parsed = tempVal.toFixed(1) + ' °C';
+                  addTempPoint(tempVal);
+                  break;
+                case 'abcd0004-0000-1000-8000-00805f9b0131':
+                  parsed = parseFixedPointTemp(value).toFixed(1) + ' °C';
+                  break;
+                case 'abcd2a19-0000-1000-8000-00805f9b0131':
+                  parsed = value.getUint8(0) + ' %';
+                  break;
+              }
+
+              if (spanId) {
+                document.getElementById(spanId).textContent = parsed;
+              }
+              addDebugLog(`Notification [${uuid}]: ${parsed}`);
+            });
+            addDebugLog(`✅ Notifications enabled for ${uuid}`);
+          }
+        }
+
+        addDebugLog("✅ Connection successful! (TEST MODE - Monitoring only)");
+        updateConnectionStatus(true);
+
+        // Time sync
+        async function syncTimeToDevice() {
+          if (writeCharacteristic) {
+            const now = new Date();
+            const year = now.getFullYear() - 2000;
+            const month = now.getMonth() + 1;
+            const day = now.getDate();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            const timeBuffer = new Uint8Array([year, month, day, hours, minutes, seconds]);
+            await writeCharacteristic.writeValue(timeBuffer);
+            addDebugLog("✅ Time synchronized to device");
+          }
+        }
+        
+        await syncTimeToDevice();
+        addDebugLog("Time sync completed");
+        
+        window.timeSyncInterval = setInterval(syncTimeToDevice, 3 * 60 * 60 * 1000);
+        
+        device.addEventListener('gattserverdisconnected', () => {
+          addDebugLog(`⚠️ GATT server disconnected`);
+          if (window.timeSyncInterval) clearInterval(window.timeSyncInterval);
+          updateConnectionStatus(false);
+        });
+        
+        addDebugLog("=== TEST MODE ACTIVE: No file transfer features enabled ===");
+        addDebugLog("Connection should remain stable. Monitor temperature updates.");
+        
+      } catch (error) {
+        addDebugLog(`Connection failed ❌: ${error}`);
+        console.error("Connection failed ❌", error);
+        updateConnectionStatus(false);
+      }
+    }
+
+    async function writeTargetTemp() {
+      const inputStr = document.getElementById('tempInput').value.trim();
+      const inputNum = parseFloat(inputStr);
+
+      if (isNaN(inputNum) || inputNum < 0 || inputNum > 99.9) {
+        alert(LANGS[currentLang].alert);
+        addDebugLog(`Temperature setting error: ${inputStr}`);
+        return;
+      }
+
+      const intValue = Math.round(inputNum * 10);
+      const encodedStr = intValue.toString().padStart(3, '0');
+      const encoder = new TextEncoder();
+      const data = encoder.encode(encodedStr);
+
+      if (writeCharacteristic) {
+        try {
+          await writeCharacteristic.writeValue(data);
+          addDebugLog(`Temperature set successfully: ${inputNum}°C`);
+        } catch (err) {
+          addDebugLog(`Temperature write failed: ${err}`);
+        }
+      } else {
+        alert(LANGS[currentLang].notConnected);
+        addDebugLog("Temperature setting error: Not connected");
+      }
+    }
+
+    // DISABLED: Empty function for disabled download button
+    function askForDownload() {
+      addDebugLog("Download CSV is DISABLED in test mode");
+      alert("File download is disabled in test mode. This is to test if connection stays stable without file transfer.");
+    }
+
+    // DISABLED: Empty function for disabled download button
+    function downloadSelectedFiles() {
+      addDebugLog("Download selected files is DISABLED in test mode");
+      alert("File download is disabled in test mode. This is to test if connection stays stable without file transfer.");
+    }
+
+    // Chart.js setup
+    let tempChart = null;
+    let tempData = {
+      labels: [],
+      datasets: [{
+        label: 'Temperature (°C)',
+        data: [], 
+        borderColor: '#3498db',
+        backgroundColor: 'rgba(52,152,219,0.08)',
+        tension: 0.2,
+        pointRadius: 2,
+        fill: true
+      }]
+    };
+
+    function initTempChart() {
+      const ctx = document.getElementById('tempChart').getContext('2d');
+      tempChart = new Chart(ctx, {
+        type: 'line',
+        data: tempData,
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              type: 'time',
+              time: { unit: 'minute', tooltipFormat: 'HH:mm:ss' },
+              title: { display: true, text: 'Time' }
+            },
+            y: {
+              title: { display: true, text: 'Temperature (°C)' },
+              suggestedMin: 0,
+              suggestedMax: 50
+            }
+          }
+        }
+      });
+    }
+
+    function addTempPoint(temp) {
+      if (!tempChart) return; 
+      const now = new Date();
+      tempData.labels.push(now);
+      tempData.datasets[0].data.push(temp);
+      if (tempData.labels.length > 60) {
+        tempData.labels.shift();
+        tempData.datasets[0].data.shift();
+      }
+      tempChart.update();
+    }
+
+    switchLang(currentLang);
+    window.addEventListener('DOMContentLoaded', initTempChart);
+    addDebugLog("=== TEST MODE LOADED ===");
+    addDebugLog("File transfer features are DISABLED");
+    addDebugLog("Only temperature, target temp, battery, and time sync are active");
+  </script>
+</body>
+</html>
