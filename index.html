@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>QRF 蓝牙温控面板 - MINIMAL TEST</title>
+  <title>QRF 蓝牙温控面板</title>
   <style>
     * {
       box-sizing: border-box;
@@ -103,30 +103,12 @@
       color: #aaa;
     }
 
-    .test-mode-banner {
-      background-color: #e74c3c;
-      color: white;
-      text-align: center;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      font-weight: bold;
-    }
-
     .status-info {
       margin-top: 10px;
       padding: 10px;
       border-radius: 6px;
       background-color: #f8f9fa;
       border-left: 4px solid #3498db;
-    }
-    
-    .status-warning {
-      margin-top: 10px;
-      padding: 10px;
-      border-radius: 6px;
-      background-color: #fef5e7;
-      border-left: 4px solid #f39c12;
     }
 
     .debug-container {
@@ -143,7 +125,7 @@
     }
 
     #debugLog {
-      height: 200px;
+      height: 150px;
       overflow-y: auto;
       background: #f9f9f9;
       border: 1px solid #ddd;
@@ -191,18 +173,9 @@
       border-radius: 6px;
       font-size: 14px;
     }
-
-    .disabled-feature {
-      opacity: 0.5;
-      pointer-events: none;
-    }
   </style>
 </head>
 <body>
-  <div class="test-mode-banner">
-    🧪 MINIMAL TEST MODE: ONLY Temperature Characteristic + Write 🧪
-  </div>
-
   <div style="text-align:right; margin-bottom:10px;">
     <select id="langSelect" onchange="switchLang(this.value)">
       <option value="en">English</option>
@@ -210,7 +183,7 @@
     </select>
   </div>
 
-  <h1 id="mainTitle">QRF 蓝牙测试 - 最小特性</h1>
+  <h1 id="mainTitle">QRF 蓝牙温控面板</h1>
 
   <div class="container">
     <div class="connection-status">
@@ -222,16 +195,13 @@
       <label class="label" id="labelCurrentTemp">当前温度：</label>
       <span class="value" id="currentTemp">--</span>
     </div>
-    
-    <!-- DISABLED FEATURES (grayed out) -->
-    <div class="data-row disabled-feature">
+    <div class="data-row">
       <label class="label" id="labelTargetTemp">目标温度：</label>
-      <span class="value" id="targetTemp">-- (disabled)</span>
+      <span class="value" id="targetTemp">--</span>
     </div>
-    
-    <div class="data-row disabled-feature">
+    <div class="data-row">
       <label class="label" id="labelBatteryLevel">电池电量：</label>
-      <span class="value" id="batteryLevel">-- (disabled)</span>
+      <span class="value" id="batteryLevel">--</span>
     </div>
 
     <div style="margin: 30px 0;">
@@ -244,7 +214,7 @@
     </div>
 
     <div id="fileStatus" class="status-info">
-      📊 TEST MODE: Temperature notifications + Write characteristic
+      Ready to connect
     </div>
 
     <div class="debug-container">
@@ -263,7 +233,7 @@
   </div>
 
   <div class="footer" id="footerText">
-    QRF Test Mode - Temperature Only
+    QRF 控制系统 © 2025
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -271,30 +241,30 @@
   <script>
     const LANGS = {
       zh: {
-        title: "QRF 蓝牙测试 - 最小特性",
+        title: "蓝牙温控面板",
         currentTemp: "当前温度：",
         targetTemp: "目标温度：",
         batteryLevel: "电池电量：",
         setTemp: "设置温度",
-        writeTemp: "写入温度",
-        connect: "连接蓝牙",
-        footer: "测试模式 - 仅温度",
+        writeTemp: "设置温度",
+        connect: "连接蓝牙设备",
+        footer: "QRF 控制系统 © 2025",
         alert: "请输入合法的温度（0.0 ~ 99.9°C）",
-        notConnected: "未连接",
+        notConnected: "尚未连接蓝牙或未发现写特性",
         debugTitle: "调试信息",
         clearLog: "清空日志"
       },
       en: {
-        title: "QRF Bluetooth Test - Minimal",
+        title: "Bluetooth Thermostat Panel",
         currentTemp: "Current Temperature:",
         targetTemp: "Target Temperature:",
         batteryLevel: "Battery Level:",
         setTemp: "Set Temperature",
         writeTemp: "Set Temperature",
         connect: "Connect Bluetooth",
-        footer: "Test Mode - Temperature Only",
-        alert: "Enter valid temperature (0.0 ~ 99.9°C)",
-        notConnected: "Not connected",
+        footer: "QRF Control System © 2025",
+        alert: "Please enter a valid temperature (0.0 ~ 99.9°C)",
+        notConnected: "Not connected or characteristic not found",
         debugTitle: "Debug Information",
         clearLog: "Clear Log"
       }
@@ -304,27 +274,25 @@
     let writeCharacteristic = null;
     let isConnected = false;
     let connectionStartTime = null;
-    let temperatureUpdateCount = 0;
     let device = null;
 
-    const serviceUUID = 'abcd0000-0000-1000-8000-00805f9b0131';
-    const writeUUID = 'abcd0001-0000-1000-8000-00805f9b0131';
+    // 🔥 CRITICAL FIX: Use UPPERCASE UUIDs to match firmware
+    const serviceUUID = 'ABCD0000-0000-1000-8000-00805F9B0131';
+    const writeUUID = 'ABCD0001-0000-1000-8000-00805F9B0131';
     
-    // 🔥 CRITICAL: Must include the service UUID that contains the write characteristic
-    // The service UUID is the same for all characteristics
-    const optionalServicesList = [serviceUUID];
-    
-    // 🔥 CRITICAL: Only temperature notification enabled for testing
+    // All characteristics in UPPERCASE
     const notifyUUIDs = [
-      'abcd0002-0000-1000-8000-00805f9b0131'  // ONLY temperature
-      // 'abcd0004-0000-1000-8000-00805f9b0131',  // DISABLED: target temp
-      // 'abcd2a19-0000-1000-8000-00805f9b0131',  // DISABLED: battery
-      // 'abcd1001-0000-1000-8000-00805f9b0131',  // DISABLED: file transfer
-      // 'abcd1002-0000-1000-8000-00805f9b0131'   // DISABLED: file list
+      'ABCD0002-0000-1000-8000-00805F9B0131',  // temperature
+      'ABCD0004-0000-1000-8000-00805F9B0131',  // target temperature
+      'ABCD2A19-0000-1000-8000-00805F9B0131',  // battery
+      'ABCD1001-0000-1000-8000-00805F9B0131',  // file transfer
+      'ABCD1002-0000-1000-8000-00805F9B0131'   // file list
     ];
 
     const notifyDisplayMap = {
-      'abcd0002-0000-1000-8000-00805f9b0131': 'currentTemp'
+      'ABCD0002-0000-1000-8000-00805F9B0131': 'currentTemp',
+      'ABCD0004-0000-1000-8000-00805F9B0131': 'targetTemp',
+      'ABCD2A19-0000-1000-8000-00805F9B0131': 'batteryLevel'
     };
 
     function switchLang(lang) {
@@ -332,8 +300,8 @@
       document.title = LANGS[lang].title;
       document.getElementById('mainTitle').textContent = LANGS[lang].title;
       document.getElementById('labelCurrentTemp').textContent = LANGS[lang].currentTemp;
-      document.getElementById('labelTargetTemp').textContent = LANGS[lang].targetTemp + " (disabled)";
-      document.getElementById('labelBatteryLevel').textContent = LANGS[lang].batteryLevel + " (disabled)";
+      document.getElementById('labelTargetTemp').textContent = LANGS[lang].targetTemp;
+      document.getElementById('labelBatteryLevel').textContent = LANGS[lang].batteryLevel;
       document.getElementById('tempInput').placeholder = LANGS[lang].setTemp;
       document.getElementById('btnWriteTemp').textContent = LANGS[lang].writeTemp;
       document.getElementById('btnConnect').textContent = LANGS[lang].connect;
@@ -357,8 +325,6 @@
       logEntry.innerHTML = `<span class="debug-time">[${timeString}]</span> ${message}`;
       debugLog.appendChild(logEntry);
       debugLog.scrollTop = debugLog.scrollHeight;
-      
-      // Also log to console for external debugging
       console.log(`[${timeString}] ${message}`);
     }
 
@@ -367,7 +333,7 @@
       addDebugLog('Debug log cleared');
     }
 
-    function updateConnectionStatus(connected, errorMsg = null) {
+    function updateConnectionStatus(connected) {
       isConnected = connected;
       const indicator = document.getElementById('statusIndicator');
       const statusText = document.getElementById('connectionStatusText');
@@ -375,17 +341,11 @@
       if (connected) {
         indicator.className = 'status-indicator status-connected';
         statusText.textContent = LANGS[currentLang].connected;
-        const duration = connectionStartTime ? ((Date.now() - connectionStartTime) / 1000).toFixed(1) : '?';
-        addDebugLog(`✅✅✅ CONNECTION SUCCESSFUL! Duration: ${duration}s ✅✅✅`);
-        addDebugLog(`📊 This proves Bluefy CAN maintain a connection with basic characteristics`);
+        addDebugLog(`✅✅✅ CONNECTION SUCCESSFUL ✅✅✅`);
       } else {
         indicator.className = 'status-indicator status-disconnected';
         statusText.textContent = LANGS[currentLang].disconnected;
-        const duration = connectionStartTime ? ((Date.now() - connectionStartTime) / 1000).toFixed(1) : '?';
-        addDebugLog(`❌❌❌ DISCONNECTED after ${duration}s ❌❌❌`);
-        if (errorMsg) {
-          addDebugLog(`Error: ${errorMsg}`);
-        }
+        addDebugLog(`❌ DISCONNECTED`);
       }
     }
 
@@ -396,106 +356,104 @@
 
     async function connectBluetooth() {
       addDebugLog('========================================');
-      addDebugLog('🧪 MINIMAL TEST MODE STARTING');
-      addDebugLog(`📡 Service UUID: ${serviceUUID}`);
-      addDebugLog(`📡 Notification characteristic: ${notifyUUIDs[0]}`);
-      addDebugLog(`📡 Write characteristic: ${writeUUID}`);
+      addDebugLog('Connecting with UPPERCASE UUIDs');
+      addDebugLog(`Service UUID: ${serviceUUID}`);
+      addDebugLog(`Write UUID: ${writeUUID}`);
       addDebugLog('========================================');
       
       try {
         addDebugLog('Step 1: Requesting Bluetooth device...');
-        addDebugLog(`  - optionalServices: [${serviceUUID}]`);
-        
         device = await navigator.bluetooth.requestDevice({
           acceptAllDevices: true,
-          optionalServices: [serviceUUID]  // CRITICAL: Must include the service!
+          optionalServices: [serviceUUID]
         });
 
         addDebugLog(`✅ Device found: ${device.name || 'Unknown'}`);
-        addDebugLog(`   Device ID: ${device.id || 'N/A'}`);
         
         addDebugLog('Step 2: Connecting to GATT server...');
         connectionStartTime = Date.now();
-        
         const server = await device.gatt.connect();
-        addDebugLog(`✅ GATT connected (elapsed: ${(Date.now() - connectionStartTime)/1000}s)`);
+        addDebugLog(`✅ GATT connected`);
         
         addDebugLog('Step 3: Getting primary service...');
         const service = await server.getPrimaryService(serviceUUID);
         addDebugLog(`✅ Service found: ${serviceUUID}`);
         
-        addDebugLog('Step 4: Getting characteristics...');
+        addDebugLog('Step 4: Getting all characteristics...');
         const characteristics = await service.getCharacteristics();
-        addDebugLog(`Found ${characteristics.length} total characteristics`);
+        addDebugLog(`Found ${characteristics.length} characteristics`);
         
-        // List all characteristics for debugging
+        // List all found characteristics for debugging
         for (const char of characteristics) {
-          addDebugLog(`  - Available characteristic: ${char.uuid}`);
+          addDebugLog(`  Found: ${char.uuid}`);
         }
         
         let writeFound = false;
-        let notifyFound = false;
         
         for (const char of characteristics) {
           const uuid = char.uuid;
           
-          if (uuid === writeUUID) {
+          if (uuid.toUpperCase() === writeUUID.toUpperCase()) {
             writeCharacteristic = char;
             writeFound = true;
-            addDebugLog(`  ✅ WRITE characteristic FOUND: ${uuid}`);
+            addDebugLog(`✅ WRITE characteristic FOUND: ${uuid}`);
             continue;
           }
           
-          if (notifyUUIDs.includes(uuid)) {
-            addDebugLog(`  🔔 Enabling notifications for: ${uuid}`);
+          if (notifyUUIDs.map(u => u.toUpperCase()).includes(uuid.toUpperCase())) {
+            addDebugLog(`🔔 Enabling notifications for: ${uuid}`);
             try {
               await char.startNotifications();
-              addDebugLog(`  ✅ Notifications ENABLED for ${uuid}`);
-              notifyFound = true;
+              addDebugLog(`✅ Notifications enabled for ${uuid}`);
               
               char.addEventListener('characteristicvaluechanged', (event) => {
                 const value = event.target.value;
                 const uuid = event.target.uuid;
-                temperatureUpdateCount++;
-                
-                if (uuid === 'abcd0002-0000-1000-8000-00805f9b0131') {
-                  const tempVal = parseFixedPointTemp(value);
-                  const parsed = tempVal.toFixed(1) + ' °C';
-                  document.getElementById('currentTemp').textContent = parsed;
-                  addTempPoint(tempVal);
-                  const elapsed = ((Date.now() - connectionStartTime) / 1000).toFixed(1);
-                  addDebugLog(`🌡️ [${elapsed}s] Temp update #${temperatureUpdateCount}: ${parsed}`);
+                const spanId = notifyDisplayMap[uuid.toUpperCase()];
+                let parsed = '';
+
+                switch (uuid.toUpperCase()) {
+                  case 'ABCD0002-0000-1000-8000-00805F9B0131':
+                    const tempVal = parseFixedPointTemp(value);
+                    parsed = tempVal.toFixed(1) + ' °C';
+                    addTempPoint(tempVal);
+                    addDebugLog(`🌡️ Temperature: ${parsed}`);
+                    break;
+                  case 'ABCD0004-0000-1000-8000-00805F9B0131':
+                    parsed = parseFixedPointTemp(value).toFixed(1) + ' °C';
+                    addDebugLog(`🎯 Target: ${parsed}`);
+                    break;
+                  case 'ABCD2A19-0000-1000-8000-00805F9B0131':
+                    parsed = value.getUint8(0) + ' %';
+                    addDebugLog(`🔋 Battery: ${parsed}`);
+                    break;
+                }
+
+                if (spanId) {
+                  document.getElementById(spanId).textContent = parsed;
                 }
               });
             } catch (err) {
-              addDebugLog(`  ❌ Failed to enable notifications for ${uuid}: ${err}`);
+              addDebugLog(`❌ Failed to enable notifications for ${uuid}: ${err}`);
             }
           }
         }
         
         if (!writeFound) {
-          addDebugLog(`❌❌❌ CRITICAL ERROR: Write characteristic ${writeUUID} not found!`);
-          addDebugLog(`   Available characteristics: ${characteristics.map(c => c.uuid).join(', ')}`);
-          updateConnectionStatus(false, 'Write characteristic missing');
+          addDebugLog(`❌ ERROR: Write characteristic not found!`);
+          updateConnectionStatus(false);
           return;
         }
         
-        if (!notifyFound) {
-          addDebugLog(`⚠️ WARNING: No notification characteristics were enabled`);
-        } else {
-          addDebugLog(`✅ Notification characteristic enabled successfully`);
-        }
-        
         addDebugLog('========================================');
-        addDebugLog('✅✅✅ CONNECTION ESTABLISHED SUCCESSFULLY ✅✅✅');
-        addDebugLog(`📊 Active: WRITE + ${notifyFound ? 'Temperature notifications' : 'NO notifications'}`);
-        addDebugLog(`⏱️ Connection time: ${(Date.now() - connectionStartTime)/1000} seconds`);
+        addDebugLog('✅✅✅ CONNECTION FULLY ESTABLISHED ✅✅✅');
+        addDebugLog('All characteristics should now work');
         addDebugLog('========================================');
         
         updateConnectionStatus(true);
         
-        // Time sync (keep this as it's important)
-        addDebugLog('Step 5: Syncing time to device...');
+        // Time sync
+        addDebugLog('Syncing time to device...');
         try {
           const now = new Date();
           const year = now.getFullYear() - 2000;
@@ -508,57 +466,19 @@
           await writeCharacteristic.writeValue(timeBuffer);
           addDebugLog(`✅ Time synced: ${year+2000}-${month}-${day} ${hours}:${minutes}:${seconds}`);
         } catch (err) {
-          addDebugLog(`⚠️ Time sync failed: ${err} (non-critical)`);
+          addDebugLog(`⚠️ Time sync failed: ${err}`);
         }
         
-        // Monitor connection stability
-        let lastUpdateCount = 0;
-        const heartbeatInterval = setInterval(() => {
-          if (isConnected) {
-            const elapsed = (Date.now() - connectionStartTime) / 1000;
-            if (temperatureUpdateCount !== lastUpdateCount) {
-              lastUpdateCount = temperatureUpdateCount;
-              addDebugLog(`💓 [${elapsed.toFixed(0)}s] Connection alive, ${temperatureUpdateCount} updates received`);
-            }
-          }
-        }, 15000);
-        
-        device.addEventListener('gattserverdisconnected', (event) => {
-          addDebugLog(`🔌 GATT server disconnected event received`);
-          if (event.reason) {
-            addDebugLog(`   Disconnect reason: ${event.reason}`);
-          }
-          clearInterval(heartbeatInterval);
-          updateConnectionStatus(false, 'GATT disconnected');
-          
-          // Calculate final stats
-          const duration = (Date.now() - connectionStartTime) / 1000;
-          addDebugLog(`📊 Final stats: Connected for ${duration.toFixed(1)} seconds, received ${temperatureUpdateCount} temperature updates`);
-          
-          if (temperatureUpdateCount > 0 && duration > 30) {
-            addDebugLog(`🎉🎉🎉 SUCCESS! Connection stayed alive for ${duration.toFixed(1)}s with ${temperatureUpdateCount} updates!`);
-            addDebugLog(`💡 This proves Bluefy CAN work with basic characteristics.`);
-            addDebugLog(`💡 The problem is one of the disabled characteristics (target temp, battery, or file transfer).`);
-          } else if (temperatureUpdateCount > 0 && duration > 10) {
-            addDebugLog(`✅ PARTIAL SUCCESS: Connection lasted ${duration.toFixed(1)}s with ${temperatureUpdateCount} updates.`);
-            addDebugLog(`💡 Try enabling characteristics one by one.`);
-          } else {
-            addDebugLog(`❌ FAILURE: Connection dropped after ${duration.toFixed(1)}s with only ${temperatureUpdateCount} updates.`);
-            addDebugLog(`💡 This suggests even basic characteristics have issues with Bluefy.`);
-            addDebugLog(`💡 Try reducing MTU in firmware or using different connection parameters.`);
-          }
+        // Monitor disconnection
+        device.addEventListener('gattserverdisconnected', () => {
+          const duration = connectionStartTime ? ((Date.now() - connectionStartTime) / 1000).toFixed(1) : '?';
+          addDebugLog(`🔌 DISCONNECTED after ${duration}s`);
+          updateConnectionStatus(false);
         });
-        
-        addDebugLog('========================================');
-        addDebugLog('🧪 TEST ACTIVE - Monitoring temperature updates');
-        addDebugLog('⏱️ Keep the connection alive - watch for updates');
-        addDebugLog('❌ If disconnect occurs, check the debug log above');
-        addDebugLog('========================================');
         
       } catch (error) {
         addDebugLog(`❌ CONNECTION FAILED: ${error.message || error}`);
-        console.error("Connection failed:", error);
-        updateConnectionStatus(false, error.message);
+        updateConnectionStatus(false);
       }
     }
 
@@ -568,7 +488,7 @@
 
       if (isNaN(inputNum) || inputNum < 0 || inputNum > 99.9) {
         alert(LANGS[currentLang].alert);
-        addDebugLog(`Temperature setting error: ${inputStr} (invalid range)`);
+        addDebugLog(`Invalid temperature: ${inputStr}`);
         return;
       }
 
@@ -580,17 +500,17 @@
       if (writeCharacteristic) {
         try {
           await writeCharacteristic.writeValue(data);
-          addDebugLog(`✅ Temperature set: ${inputNum}°C (sent: ${encodedStr})`);
+          addDebugLog(`✅ Temperature set: ${inputNum}°C`);
         } catch (err) {
           addDebugLog(`❌ Write failed: ${err}`);
         }
       } else {
         alert(LANGS[currentLang].notConnected);
-        addDebugLog("Cannot write: write characteristic not available");
+        addDebugLog("Cannot write: not connected");
       }
     }
 
-    // Chart.js setup
+    // Chart setup
     let tempChart = null;
     let tempData = {
       labels: [],
@@ -612,27 +532,17 @@
         data: tempData,
         options: {
           responsive: true,
-          plugins: {
-            legend: { display: false }
-          },
+          plugins: { legend: { display: false } },
           scales: {
-            x: {
-              type: 'time',
-              time: { unit: 'minute', tooltipFormat: 'HH:mm:ss' },
-              title: { display: true, text: 'Time' }
-            },
-            y: {
-              title: { display: true, text: 'Temperature (°C)' },
-              suggestedMin: 0,
-              suggestedMax: 50
-            }
+            x: { type: 'time', time: { unit: 'minute' }, title: { display: true, text: 'Time' } },
+            y: { title: { display: true, text: 'Temperature (°C)' }, suggestedMin: 0, suggestedMax: 50 }
           }
         }
       });
     }
 
     function addTempPoint(temp) {
-      if (!tempChart) return; 
+      if (!tempChart) return;
       const now = new Date();
       tempData.labels.push(now);
       tempData.datasets[0].data.push(temp);
@@ -643,17 +553,13 @@
       tempChart.update();
     }
 
-    // Initialize
     switchLang(currentLang);
     window.addEventListener('DOMContentLoaded', () => {
       initTempChart();
-      addDebugLog('=== MINIMAL TEST MODE LOADED ===');
-      addDebugLog(`📡 Service UUID: ${serviceUUID}`);
-      addDebugLog(`📡 Write characteristic: ${writeUUID}`);
-      addDebugLog(`📡 Notification characteristic: ${notifyUUIDs[0]}`);
-      addDebugLog('🎯 Expected behavior: Connection stays alive, temperature updates arrive');
-      addDebugLog('✅ Write temperature button should work');
-      addDebugLog('❌ If disconnect occurs, the issue is fundamental to Bluefy');
+      addDebugLog('=== Page Loaded ===');
+      addDebugLog(`⚠️ Using UPPERCASE UUIDs to match firmware`);
+      addDebugLog(`Service: ${serviceUUID}`);
+      addDebugLog(`Write: ${writeUUID}`);
     });
   </script>
 </body>
